@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 export function AlertsPage() {
-  const { alerts, acknowledgeAlert, resolveAlert } = useCrowd();
+  const { alerts, acknowledgeAlert, resolveAlert, dataSourceMode } = useCrowd();
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -55,7 +55,10 @@ export function AlertsPage() {
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Safety Alerts & Warnings
             </h2>
-            <DemoBadge label="SIMULATED ALERTS" />
+            <DemoBadge
+              variant={dataSourceMode === "backend" ? "backend" : "demo"}
+              label={dataSourceMode === "backend" ? "DJANGO BACKEND ALERTS" : "SIMULATED DEMO ALERTS"}
+            />
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Review crowd alerts, warnings, and take quick safety actions

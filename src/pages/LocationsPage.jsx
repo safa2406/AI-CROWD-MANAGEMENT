@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 export function LocationsPage() {
-  const { locations } = useCrowd();
+  const { locations, dataSourceMode } = useCrowd();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("All Types");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -63,7 +63,10 @@ export function LocationsPage() {
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Monitored Locations
             </h2>
-            <DemoBadge label="SIMULATED DATA" />
+            <DemoBadge
+              variant={dataSourceMode === "backend" ? "backend" : "demo"}
+              label={dataSourceMode === "backend" ? "DJANGO BACKEND DATA" : "SIMULATED DEMO DATA"}
+            />
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             View all locations, their crowd capacities, and connected cameras

@@ -6,7 +6,7 @@ import { DemoBadge } from "../common/Badge";
 
 export function Header({ onOpenSidebar }) {
   const location = useLocation();
-  const { activeAlertsCount, highRiskLocationsCount } = useCrowd();
+  const { activeAlertsCount, highRiskLocationsCount, dataSourceMode, error } = useCrowd();
   const [timeStr, setTimeStr] = useState("");
 
   useEffect(() => {
@@ -87,8 +87,23 @@ export function Header({ onOpenSidebar }) {
 
       {/* Right: Live Time, Alert bell, Demo badge */}
       <div className="flex items-center gap-2.5 sm:gap-4">
-        {/* Transparent Demo Indicator */}
-        <DemoBadge label="SIMULATED DEMO DATA" />
+        {/* Dynamic Data Source Indicator */}
+        <DemoBadge
+          variant={
+            dataSourceMode === "backend"
+              ? "backend"
+              : dataSourceMode === "error" || error
+              ? "error"
+              : "demo"
+          }
+          label={
+            dataSourceMode === "backend"
+              ? "DJANGO BACKEND DATA"
+              : dataSourceMode === "error" || error
+              ? "BACKEND OFFLINE (DEMO)"
+              : "SIMULATED DEMO DATA"
+          }
+        />
 
         {/* Live Clock */}
         <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-lg text-slate-700 font-mono text-xs border border-slate-200">

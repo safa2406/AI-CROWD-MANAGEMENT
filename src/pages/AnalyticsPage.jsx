@@ -66,14 +66,23 @@ const BarTooltip = ({ active, payload }) => {
 };
 
 export function AnalyticsPage() {
-  const { locations } = useCrowd();
+  const { locations, hourlyTrends, dataSourceMode } = useCrowd();
   const [timeRange, setTimeRange] = useState("Today");
 
   // Dynamic 7-day variation or Today
-  const historicalData = HOURLY_CROWD_TRENDS.map((item) => ({
-    ...item,
-    simulatedPastWeek: Math.round(item.totalCrowd * 0.88),
-  }));
+  const trendSource =
+    hourlyTrends && hourlyTrends.length > 0
+      ? hourlyTrends
+      : HOURLY_CROWD_TRENDS;
+
+  const historicalData = trendSource.map((item) => {
+    const crowdVal = item.totalCrowd ?? item.total_crowd;
+    return {
+      ...item,
+      totalCrowd: crowdVal,
+      simulatedPastWeek: Math.round(crowdVal * 0.88),
+    };
+  });
 
   // Location comparison dataset
   const locationComparisonData = locations.map((loc) => ({
@@ -107,7 +116,10 @@ export function AnalyticsPage() {
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Crowd Analytics & Reports
             </h2>
-            <DemoBadge label="SIMULATED DATA" />
+            <DemoBadge
+              variant={dataSourceMode === "backend" ? "backend" : "demo"}
+              label={dataSourceMode === "backend" ? "DJANGO BACKEND DATA" : "SIMULATED DEMO DATA"}
+            />
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Past crowd patterns, busy hours, and safety data

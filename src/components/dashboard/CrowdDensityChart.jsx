@@ -60,7 +60,7 @@ const CustomTooltip = ({ active, payload, label, locationName }) => {
 };
 
 export function CrowdDensityChart() {
-  const { locations } = useCrowd();
+  const { locations, hourlyTrends } = useCrowd();
   const [selectedLocationId, setSelectedLocationId] = useState("all");
   const [activeRange, setActiveRange] = useState("Today");
 
@@ -72,12 +72,17 @@ export function CrowdDensityChart() {
   // Generate dataset based on selection (Aggregate vs Individual Location)
   const fullData = useMemo(() => {
     if (selectedLocationId === "all" || !selectedLocation) {
-      return HOURLY_CROWD_TRENDS.map((item) => ({
+      const sourceTrends =
+        hourlyTrends && hourlyTrends.length > 0
+          ? hourlyTrends
+          : HOURLY_CROWD_TRENDS;
+
+      return sourceTrends.map((item) => ({
         time: item.time,
-        crowd: item.totalCrowd,
-        safeLimit: item.safeLimit,
-        peakLimit: item.peakLimit,
-        capacity: 19800,
+        crowd: item.totalCrowd ?? item.total_crowd,
+        safeLimit: item.safeLimit ?? item.safe_limit ?? 19800,
+        peakLimit: item.peakLimit ?? item.peak_limit ?? 22770,
+        capacity: item.capacity || 19800,
       }));
     }
 
@@ -123,7 +128,7 @@ export function CrowdDensityChart() {
         capacity: selectedLocation.capacity,
       };
     });
-  }, [selectedLocationId, selectedLocation]);
+  }, [selectedLocationId, selectedLocation, hourlyTrends]);
 
   // Apply time range filter
   const chartData = useMemo(() => {

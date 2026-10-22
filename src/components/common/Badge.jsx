@@ -9,6 +9,11 @@ export function StatusBadge({ status, size = "md" }) {
       dot: "bg-emerald-500",
       label: "Safe",
     },
+    low: {
+      bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      dot: "bg-emerald-500",
+      label: "Safe",
+    },
     moderate: {
       bg: "bg-amber-50 text-amber-700 border-amber-200",
       dot: "bg-amber-500",
@@ -89,7 +94,37 @@ export function AlertStatusBadge({ status }) {
   );
 }
 
-export function DemoBadge({ label = "DEMO DATA" }) {
+export function DemoBadge({ label = "DEMO DATA", variant = "auto" }) {
+  const isBackend =
+    variant === "backend" ||
+    (variant === "auto" && label && label.toUpperCase().includes("DJANGO"));
+
+  const isError =
+    variant === "error" ||
+    (variant === "auto" &&
+      label &&
+      (label.toUpperCase().includes("OFFLINE") ||
+        label.toUpperCase().includes("ERROR") ||
+        label.toUpperCase().includes("FAILED")));
+
+  if (isBackend) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 text-[11px] font-mono font-semibold tracking-wider uppercase bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 rounded shadow-xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 shadow-xs shadow-emerald-400/50" />
+        {label}
+      </span>
+    );
+  }
+
+  if (isError) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 text-[11px] font-mono font-semibold tracking-wider uppercase bg-rose-950/80 text-rose-300 border border-rose-500/40 rounded shadow-xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mr-1.5" />
+        {label}
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-mono font-medium tracking-wider uppercase bg-slate-900/80 text-amber-300 border border-amber-400/40 rounded shadow-xs">
       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse" />

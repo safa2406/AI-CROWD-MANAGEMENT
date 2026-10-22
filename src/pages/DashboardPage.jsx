@@ -11,6 +11,9 @@ import {
   ShieldAlert,
   Activity,
   Radio,
+  RefreshCw,
+  Server,
+  Zap,
 } from "lucide-react";
 
 export function DashboardPage() {
@@ -21,6 +24,11 @@ export function DashboardPage() {
     activeAlertsCount,
     highRiskLocationsCount,
     simulationActive,
+    setSimulationActive,
+    dataSourceMode,
+    isLoading,
+    error,
+    refreshData,
   } = useCrowd();
 
   const overallOccupancyPct = totalCapacity
@@ -49,13 +57,72 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-end sm:self-auto text-xs">
+        <div className="flex items-center gap-2.5 self-end sm:self-auto text-xs flex-wrap">
+          {/* Data Source Indicator */}
+          {dataSourceMode === "backend" ? (
+            <div className="px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 flex items-center gap-2">
+              <Server className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-medium">Django API Connected</span>
+            </div>
+          ) : dataSourceMode === "error" ? (
+            <div className="px-3 py-1.5 rounded-lg bg-rose-950/60 border border-rose-800/80 text-rose-300 flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <span className="font-medium">Backend Offline</span>
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 rounded-lg bg-amber-950/60 border border-amber-800/80 text-amber-300 flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-medium">Demo Mode (Simulated)</span>
+            </div>
+          )}
+
+          {/* Refresh Action */}
+          <button
+            onClick={refreshData}
+            disabled={isLoading}
+            title="Refresh backend data"
+            className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-blue-400" : ""}`} />
+          </button>
+
           <div className="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-300 flex items-center gap-2">
             <Radio className="w-3.5 h-3.5 text-blue-400" />
-            <span>Live Updates: {simulationActive ? "ON" : "PAUSED"}</span>
+            <span>Updates: {simulationActive ? "DEMO ACTIVE" : (dataSourceMode === "backend" ? "SYNCED" : "OFFLINE")}</span>
           </div>
         </div>
       </div>
+
+      {/* Backend Connection Error Banner (if offline) */}
+      {error && (dataSourceMode === "backend" || dataSourceMode === "error") && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-rose-900">
+                Backend Connection Unavailable
+              </h4>
+              <p className="text-xs text-rose-700 mt-0.5">
+                {error}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              onClick={refreshData}
+              className="px-3 py-1.5 text-xs font-semibold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors shadow-2xs"
+            >
+              Retry Connection
+            </button>
+            <button
+              onClick={() => setSimulationActive(true)}
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-rose-300 text-rose-800 rounded-lg hover:bg-rose-100 transition-colors"
+            >
+              Switch to Demo Mode
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 4 Primary KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
