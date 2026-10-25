@@ -60,6 +60,7 @@ export function normalizeLocation(loc) {
 
   return {
     ...loc,
+    numericId: numericId,
     rawId: numericId,
     id: displayId,
     name: loc.name,

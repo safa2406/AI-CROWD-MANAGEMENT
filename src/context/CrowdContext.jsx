@@ -67,9 +67,11 @@ export function CrowdProvider({ children }) {
    * Fetch live data from Django REST API endpoints
    */
   const fetchBackendData = useCallback(
-    async (signal, isManualRetry = false) => {
-      setIsLoading(true);
-      setError(null);
+    async (signal, isManualRetry = false, isSilent = false) => {
+      if (!isSilent) {
+        setIsLoading(true);
+        setError(null);
+      }
 
       try {
         const [summaryRes, locationsRes, alertsRes] = await Promise.all([
@@ -106,11 +108,15 @@ export function CrowdProvider({ children }) {
         const msg =
           err.message ||
           "Unable to connect to Django backend. Ensure http://127.0.0.1:8000/ is running.";
-        setError(msg);
-        setDataSourceMode("error");
-        addToast(msg, "error");
+        if (!isSilent) {
+          setError(msg);
+          setDataSourceMode("error");
+          addToast(msg, "error");
+        }
       } finally {
-        setIsLoading(false);
+        if (!isSilent) {
+          setIsLoading(false);
+        }
       }
     },
     [addToast]
@@ -122,6 +128,17 @@ export function CrowdProvider({ children }) {
     fetchBackendData(controller.signal);
     return () => controller.abort();
   }, [fetchBackendData]);
+
+  // Automatic background synchronization with Django (silent polling every 3.5s)
+  useEffect(() => {
+    if (dataSourceMode !== "backend") return;
+
+    const interval = setInterval(() => {
+      fetchBackendData(undefined, false, true);
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [dataSourceMode, fetchBackendData]);
 
   /**
    * Switch between Live Backend Mode and Live Demo Mode

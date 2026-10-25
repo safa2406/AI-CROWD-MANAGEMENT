@@ -35,10 +35,10 @@ export function LiveMonitoringPage() {
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Live Camera Monitoring
             </h2>
-            <DemoBadge label="SIMULATED DEMO DATA" />
+            <DemoBadge label="PRERECORDED DEMO FEEDS" />
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Watch live camera feeds and check real-time crowd levels at each location
+            Watch 4 prerecorded camera feeds with AI detection and check real-time crowd levels at each location
           </p>
         </div>
 

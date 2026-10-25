@@ -1,0 +1,11 @@
+# CrowdGuard Phase 4 Computer Vision Environment Dependencies
+# Generated for CPU-only inference on Windows with Python 3.13
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+torchvision==0.29.1+cpu
+
+ultralytics==8.4.188
+opencv-python==5.0.0.93
+requests==2.34.2
+pillow==12.3.0
