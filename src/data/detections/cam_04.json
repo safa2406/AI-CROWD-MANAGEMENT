@@ -1,8 +1,8 @@
 {
   "camera_id": "CAM-04",
-  "camera_name": "Camera 4 - Departures Hall",
+  "camera_name": "Camera 4 - Railway Station Hall",
   "location_id": 3,
-  "location_name": "North Terminal Concourse",
+  "location_name": "Railway Station Hall",
   "width": 1280,
   "height": 720,
   "fps": 25.0,

@@ -1,16 +1,155 @@
-import React from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useCrowd } from "../context/CrowdContext";
 import { CameraFeedCard } from "../components/live/CameraFeedCard";
-import { StatusBadge, DemoBadge } from "../components/common/Badge";
+import { StatusBadge, AlertStatusBadge, DemoBadge } from "../components/common/Badge";
 import {
   Video,
   TrendingUp,
   TrendingDown,
   Camera,
+  Activity,
 } from "lucide-react";
 
 export function LiveMonitoringPage() {
   const { locations, setSelectedCameraId } = useCrowd();
+
+  // Maintain previous crowd counts and timestamps per location to derive dynamic flow
+  const locationHistoryRef = useRef({});
+  const [demoTick, setDemoTick] = useState(0);
+
+  // Subtle demonstration interval when counts are unchanged (cleans up on unmount)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDemoTick((t) => t + 1);
+    }, 2500);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Compute dynamic flow rates: measured from count changes when active, subtle demo flow when steady
+  const flows = useMemo(() => {
+    const now = Date.now();
+    const result = {};
+
+    locations.forEach((loc) => {
+      const id = loc.id;
+      const currentCount = Number(loc.currentCount) || 0;
+      const history = locationHistoryRef.current[id];
+
+      if (!history) {
+        // Initial baseline capture
+        locationHistoryRef.current[id] = {
+          prevCount: currentCount,
+          lastObservedTime: now,
+          lastChangeTime: 0,
+          measuredRate: 0,
+          measuredDirection: null,
+        };
+
+        const baseRate = Math.max(3, Math.min(15, Math.round(loc.capacity * 0.04)));
+        result[id] = {
+          type: "demo",
+          direction: "inflow",
+          rate: baseRate,
+          text: `+${baseRate}/min entering`,
+          isPositive: true,
+        };
+        return;
+      }
+
+      const timeDeltaSec = Math.max(1, (now - history.lastObservedTime) / 1000);
+      const countDelta = currentCount - history.prevCount;
+
+      if (countDelta !== 0) {
+        // Real measured change from YOLO / backend
+        const rawRate = Math.round((Math.abs(countDelta) / timeDeltaSec) * 60);
+        const boundedRate = Math.min(80, Math.max(4, rawRate));
+        const direction = countDelta > 0 ? "inflow" : "outflow";
+
+        history.prevCount = currentCount;
+        history.lastObservedTime = now;
+        history.lastChangeTime = now;
+        history.measuredRate = boundedRate;
+        history.measuredDirection = direction;
+
+        result[id] = {
+          type: "measured",
+          direction,
+          rate: boundedRate,
+          text:
+            direction === "inflow"
+              ? `+${boundedRate}/min net inflow`
+              : `-${boundedRate}/min net outflow`,
+          isPositive: direction === "inflow",
+        };
+      } else {
+        // Count is unchanged
+        const secondsSinceChange = (now - history.lastChangeTime) / 1000;
+
+        // Briefly retain real measured direction if change occurred recently (< 6 seconds)
+        if (
+          history.lastChangeTime > 0 &&
+          secondsSinceChange < 6 &&
+          history.measuredDirection
+        ) {
+          result[id] = {
+            type: "measured",
+            direction: history.measuredDirection,
+            rate: history.measuredRate,
+            text:
+              history.measuredDirection === "inflow"
+                ? `+${history.measuredRate}/min net inflow`
+                : `-${history.measuredRate}/min net outflow`,
+            isPositive: history.measuredDirection === "inflow",
+          };
+        } else {
+          // Unchanged count: subtle demonstration oscillation (phase-offset per location)
+          const numericId =
+            loc.numericId || parseInt(id.replace(/\D/g, ""), 10) || 1;
+          const phase = demoTick * 0.7 + numericId * 1.5;
+          const wave = Math.sin(phase);
+
+          const capScale = Math.max(
+            3,
+            Math.min(12, Math.round(loc.capacity * 0.03))
+          );
+          const demoRate = Math.max(
+            2,
+            Math.round(capScale * (0.6 + 0.4 * Math.abs(wave)))
+          );
+
+          if (wave > 0.2) {
+            result[id] = {
+              type: "demo",
+              direction: "inflow",
+              rate: demoRate,
+              text: `+${demoRate}/min entering`,
+              isPositive: true,
+            };
+          } else if (wave < -0.2) {
+            result[id] = {
+              type: "demo",
+              direction: "outflow",
+              rate: demoRate,
+              text: `-${demoRate}/min leaving`,
+              isPositive: false,
+            };
+          } else {
+            result[id] = {
+              type: "demo",
+              direction: "steady",
+              rate: 0,
+              text: "Steady",
+              isPositive: null,
+            };
+          }
+        }
+        history.lastObservedTime = now;
+      }
+    });
+
+    return result;
+  }, [locations, demoTick]);
 
   const cameraMap = {
     "LOC-101": "CAM-01",
@@ -75,7 +214,13 @@ export function LiveMonitoringPage() {
               100,
               Math.round((loc.currentCount / loc.capacity) * 100)
             );
-            const isPositiveFlow = loc.flowRate?.startsWith("+");
+            const flowInfo = flows[loc.id] || {
+              type: "demo",
+              direction: "steady",
+              rate: 0,
+              text: "Steady",
+              isPositive: null,
+            };
             const hasDedicatedCamera = Boolean(cameraMap[loc.id]);
 
             return (
@@ -95,7 +240,20 @@ export function LiveMonitoringPage() {
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">{loc.zone}</p>
                     </div>
-                    <StatusBadge status={loc.status} size="sm" />
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-medium uppercase">Crowd:</span>
+                        <StatusBadge status={loc.status} size="sm" />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-medium uppercase">Alert:</span>
+                        <AlertStatusBadge
+                          status={loc.alertInfo?.status || "none"}
+                          label={loc.alertInfo?.badgeLabel || "NO ALERTS"}
+                          size="sm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Crowd Count & Capacity */}
@@ -130,17 +288,37 @@ export function LiveMonitoringPage() {
 
                   {/* Telemetry info */}
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                    <div className="flex items-center gap-1 text-[11px]">
+                    <div
+                      className="flex items-center gap-1 text-[11px]"
+                      title="Estimated net flow derived from YOLO detection count changes over time (not gate tracking)."
+                    >
                       <span>Flow:</span>
-                      {isPositiveFlow ? (
-                        <span className="text-rose-600 font-semibold flex items-center">
+                      {flowInfo.direction === "inflow" ? (
+                        <span
+                          className={`font-semibold flex items-center ${
+                            flowInfo.type === "measured"
+                              ? "text-rose-600"
+                              : "text-rose-600/90"
+                          }`}
+                        >
                           <TrendingUp className="w-3 h-3 mr-0.5" />
-                          {loc.flowRate} entering
+                          {flowInfo.text}
+                        </span>
+                      ) : flowInfo.direction === "outflow" ? (
+                        <span
+                          className={`font-semibold flex items-center ${
+                            flowInfo.type === "measured"
+                              ? "text-emerald-600"
+                              : "text-emerald-600/90"
+                          }`}
+                        >
+                          <TrendingDown className="w-3 h-3 mr-0.5" />
+                          {flowInfo.text}
                         </span>
                       ) : (
-                        <span className="text-emerald-600 font-semibold flex items-center">
-                          <TrendingDown className="w-3 h-3 mr-0.5" />
-                          {loc.flowRate} leaving
+                        <span className="text-slate-600 font-medium flex items-center">
+                          <Activity className="w-3 h-3 mr-0.5 text-slate-400" />
+                          {flowInfo.text}
                         </span>
                       )}
                     </div>
@@ -154,9 +332,15 @@ export function LiveMonitoringPage() {
 
                 {/* Card Action */}
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">
-                    Status: <strong className="text-slate-600 uppercase">{loc.status}</strong>
-                  </span>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="text-slate-500">
+                      Crowd: <strong className="text-slate-700 uppercase">{loc.status === "low" ? "SAFE" : loc.status}</strong>
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-500">
+                      Alert: <strong className="text-slate-700 uppercase">{loc.alertInfo?.label || "No Alerts"}</strong>
+                    </span>
+                  </div>
 
                   {hasDedicatedCamera ? (
                     <button

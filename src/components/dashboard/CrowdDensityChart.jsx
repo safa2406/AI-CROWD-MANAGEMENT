@@ -80,9 +80,9 @@ export function CrowdDensityChart() {
       return sourceTrends.map((item) => ({
         time: item.time,
         crowd: item.totalCrowd ?? item.total_crowd,
-        safeLimit: item.safeLimit ?? item.safe_limit ?? 19800,
-        peakLimit: item.peakLimit ?? item.peak_limit ?? 22770,
-        capacity: item.capacity || 19800,
+        safeLimit: item.safeLimit ?? item.safe_limit ?? 1046,
+        peakLimit: item.peakLimit ?? item.peak_limit ?? 1255,
+        capacity: item.capacity || 1395,
       }));
     }
 
@@ -142,9 +142,9 @@ export function CrowdDensityChart() {
   }, [fullData, activeRange]);
 
   const safeLimit =
-    chartData.length > 0 ? chartData[0].safeLimit : 12000;
+    chartData.length > 0 ? chartData[0].safeLimit : 1046;
   const criticalLimit =
-    chartData.length > 0 ? chartData[0].peakLimit : 17000;
+    chartData.length > 0 ? chartData[0].peakLimit : 1255;
 
   const locationLabel = selectedLocation
     ? selectedLocation.name

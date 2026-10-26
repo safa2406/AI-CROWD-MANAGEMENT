@@ -6,56 +6,56 @@ from crowd_safety.models import Location, CrowdReading, Alert
 
 LOCATIONS_DATA = [
     {
-        "name": "Central Metro Interchange",
+        "name": "Street Pathway",
         "location_type": "Transit Station",
         "address": "Zone A - Underground Concourse",
-        "safe_capacity": 3500,
-        "current_count": 3290,  # 94% -> Critical
+        "safe_capacity": 350,
+        "current_count": 329,  # 94% -> Critical
         "latitude": Decimal("40.752700"),
         "longitude": Decimal("-73.977200"),
     },
     {
-        "name": "Stadium Gate A & B Turnstiles",
+        "name": "Central Metro Station",
         "location_type": "Stadium Entrance",
         "address": "Zone B - Main Entrance",
-        "safe_capacity": 2800,
-        "current_count": 2240,  # 80% -> High
+        "safe_capacity": 280,
+        "current_count": 224,  # 80% -> High
         "latitude": Decimal("40.750500"),
         "longitude": Decimal("-73.993400"),
     },
     {
-        "name": "North Terminal Concourse",
+        "name": "Railway Station Hall",
         "location_type": "Transit Station",
         "address": "Zone A - Level 2",
-        "safe_capacity": 4500,
-        "current_count": 2650,  # 58% -> Moderate
+        "safe_capacity": 65,
+        "current_count": 53,  # 81.5% -> High
         "latitude": Decimal("40.756000"),
         "longitude": Decimal("-73.986500"),
     },
     {
-        "name": "City Civic Plaza Esplanade",
+        "name": "Bus Terminal Entrance",
         "location_type": "Public Plaza",
         "address": "Zone C - Outdoor Promenade",
-        "safe_capacity": 6000,
-        "current_count": 2100,  # 35% -> Low
+        "safe_capacity": 400,
+        "current_count": 140,  # 35% -> Low
         "latitude": Decimal("40.758900"),
         "longitude": Decimal("-73.985100"),
     },
     {
-        "name": "East Grandstand Promenade",
+        "name": "City Market Square",
         "location_type": "Stadium Walkway",
         "address": "Zone B - Walkway Corridor",
-        "safe_capacity": 1800,
-        "current_count": 1530,  # 85% -> High
+        "safe_capacity": 180,
+        "current_count": 153,  # 85% -> High
         "latitude": Decimal("40.748000"),
         "longitude": Decimal("-73.984000"),
     },
     {
-        "name": "South Pedestrian Overpass",
+        "name": "Pedestrian Crossing",
         "location_type": "Footbridge",
         "address": "Zone D - Connector Bridge",
-        "safe_capacity": 1200,
-        "current_count": 460,  # 38% -> Low
+        "safe_capacity": 120,
+        "current_count": 46,  # 38% -> Low
         "latitude": Decimal("40.745000"),
         "longitude": Decimal("-73.989000"),
     },
@@ -149,55 +149,55 @@ class Command(BaseCommand):
         """
         Seeds initial baseline alerts matching dashboard mock state without creating duplicates.
         """
-        # Critical Alert for Central Metro Interchange
-        metro_loc = location_objs["Central Metro Interchange"][0]
+        # Critical Alert for Street Pathway
+        metro_loc = location_objs["Street Pathway"][0]
         if not Alert.objects.filter(location=metro_loc, severity='critical', status='active').exists():
             Alert.objects.create(
                 location=metro_loc,
                 severity='critical',
-                message="Platform 2 and Stairwell 4 are dangerously crowded (94% capacity). Hold turnstiles.",
+                message="Street pathway bottleneck is dangerously crowded (94% capacity). Hold entry flow.",
                 status='active',
             )
 
-        # High Alert for East Grandstand Promenade
-        grandstand_loc = location_objs["East Grandstand Promenade"][0]
+        # High Alert for City Market Square
+        grandstand_loc = location_objs["City Market Square"][0]
         if not Alert.objects.filter(location=grandstand_loc, severity='high', status='active').exists():
             Alert.objects.create(
                 location=grandstand_loc,
                 severity='high',
-                message="Heavy crowd near Gate 6 food stands is blocking the main exit hallway (85% capacity).",
+                message="Heavy crowd near market stalls is blocking the main walkway (85% capacity).",
                 status='active',
             )
 
-        # Acknowledged High Alert for Stadium Gate A & B
-        stadium_loc = location_objs["Stadium Gate A & B Turnstiles"][0]
+        # Acknowledged High Alert for Central Metro Station
+        stadium_loc = location_objs["Central Metro Station"][0]
         if not Alert.objects.filter(location=stadium_loc, severity='high', status='acknowledged').exists():
             Alert.objects.create(
                 location=stadium_loc,
                 severity='high',
-                message="Turnstiles moving slowly, causing long crowded lines outside Gate B entrance (80% capacity).",
+                message="Turnstiles moving slowly, causing long crowded lines outside Central Metro Station (80% capacity).",
                 status='acknowledged',
                 acknowledged_at=now - timedelta(minutes=14),
             )
 
-        # Acknowledged Moderate Alert for North Terminal Concourse
-        terminal_loc = location_objs["North Terminal Concourse"][0]
+        # Acknowledged Moderate Alert for Railway Station Hall
+        terminal_loc = location_objs["Railway Station Hall"][0]
         if not Alert.objects.filter(location=terminal_loc, severity='moderate', status='acknowledged').exists():
             Alert.objects.create(
                 location=terminal_loc,
                 severity='moderate',
-                message="Hallway congestion near baggage drop area (58% capacity). Public announcement requested.",
+                message="Hallway congestion near passenger waiting area (81.5% capacity). Public announcement requested.",
                 status='acknowledged',
                 acknowledged_at=now - timedelta(minutes=32),
             )
 
-        # Resolved Low Alert for City Civic Plaza Esplanade
-        plaza_loc = location_objs["City Civic Plaza Esplanade"][0]
+        # Resolved Low Alert for Bus Terminal Entrance
+        plaza_loc = location_objs["Bus Terminal Entrance"][0]
         if not Alert.objects.filter(location=plaza_loc, severity='low', status='resolved').exists():
             Alert.objects.create(
                 location=plaza_loc,
                 severity='low',
-                message="Temporary barricades narrowed the eastern walkway. Walkway inspected and cleared.",
+                message="Temporary barricades narrowed the bus terminal entrance walkway. Walkway inspected and cleared.",
                 status='resolved',
                 acknowledged_at=now - timedelta(hours=1, minutes=10),
                 resolved_at=now - timedelta(hours=1),

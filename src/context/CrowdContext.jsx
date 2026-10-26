@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import {
   INITIAL_LOCATIONS,
@@ -13,7 +14,11 @@ import {
   HOURLY_CROWD_TRENDS,
 } from "../data/mockData";
 import { crowdApi } from "../api/client";
-import { normalizeLocation, normalizeAlert } from "../api/normalizers";
+import {
+  normalizeLocation,
+  normalizeAlert,
+  getLocationAlertInfo,
+} from "../api/normalizers";
 
 const CrowdContext = createContext(null);
 
@@ -272,6 +277,8 @@ export function CrowdProvider({ children }) {
                 : item
             )
           );
+          // Refetch backend data to synchronize summary KPIs and ensure full consistency with Django
+          fetchBackendData(undefined, false, true);
           addToast(`Alert ${alertId} acknowledged. Saved to Django backend.`, "warning");
         } catch (err) {
           addToast(`Failed to acknowledge alert: ${err.message}`, "error");
@@ -293,7 +300,7 @@ export function CrowdProvider({ children }) {
         addToast(`Alert ${alertId} acknowledged (Demo Mode).`, "warning");
       }
     },
-    [alerts, dataSourceMode, addToast]
+    [alerts, dataSourceMode, addToast, fetchBackendData]
   );
 
   /**
@@ -325,6 +332,8 @@ export function CrowdProvider({ children }) {
                 : item
             )
           );
+          // Refetch backend data to synchronize summary KPIs and ensure full consistency with Django
+          fetchBackendData(undefined, false, true);
           addToast(`Alert ${alertId} marked as resolved. Updated in Django database.`, "success");
         } catch (err) {
           addToast(`Failed to resolve alert: ${err.message}`, "error");
@@ -346,7 +355,7 @@ export function CrowdProvider({ children }) {
         addToast(`Alert ${alertId} resolved (Demo Mode).`, "success");
       }
     },
-    [alerts, dataSourceMode, addToast]
+    [alerts, dataSourceMode, addToast, fetchBackendData]
   );
 
   /**
@@ -387,6 +396,19 @@ export function CrowdProvider({ children }) {
     return () => clearInterval(interval);
   }, [simulationActive, dataSourceMode]);
 
+  // Enrich locations with real-time alert state derived from Django alert records
+  const enrichedLocations = useMemo(() => {
+    return locations.map((loc) => {
+      const alertInfo = getLocationAlertInfo(loc, alerts);
+      return {
+        ...loc,
+        alertInfo,
+        alertStatus: alertInfo.status,
+        alertLabel: alertInfo.badgeLabel,
+      };
+    });
+  }, [locations, alerts]);
+
   // Derived metrics with priority to backend summary when in backend mode
   const totalLocations = dashboardSummary?.total_locations ?? locations.length;
   const totalCrowdCount =
@@ -396,8 +418,7 @@ export function CrowdProvider({ children }) {
     dashboardSummary?.total_safe_capacity ??
     locations.reduce((acc, curr) => acc + (curr.capacity || 0), 0);
   const activeAlerts = alerts.filter((a) => a.status === "active");
-  const activeAlertsCount =
-    dashboardSummary?.active_alerts_count ?? activeAlerts.length;
+  const activeAlertsCount = activeAlerts.length;
   const highRiskLocations = locations.filter(
     (l) => l.status === "high" || l.status === "critical"
   );
@@ -407,10 +428,15 @@ export function CrowdProvider({ children }) {
     dashboardSummary?.overall_occupancy_percentage ??
     (totalCapacity > 0 ? Math.round((totalCrowdCount / totalCapacity) * 100) : 0);
 
+  const getLocationAlert = useCallback(
+    (locationOrId) => getLocationAlertInfo(locationOrId, alerts),
+    [alerts]
+  );
+
   return (
     <CrowdContext.Provider
       value={{
-        locations,
+        locations: enrichedLocations,
         alerts,
         cameras,
         simulationActive,
@@ -429,6 +455,7 @@ export function CrowdProvider({ children }) {
         addLocation,
         acknowledgeAlert,
         resolveAlert,
+        getLocationAlert,
         totalLocations,
         totalCrowdCount,
         totalCapacity,

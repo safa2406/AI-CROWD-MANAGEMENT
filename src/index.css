@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --sidebar-bg: #090f1d;
@@ -8,7 +10,7 @@
   }
 
   body {
-    @apply bg-slate-100 text-slate-800 antialiased font-sans m-0 p-0;
+    @apply bg-slate-50 text-slate-800 antialiased font-sans m-0 p-0 transition-colors duration-150;
     min-height: 100vh;
   }
 
@@ -17,6 +19,198 @@
     display: flex;
     flex-direction: column;
   }
+}
+
+/* ========================================================================= */
+/* CROWDGUARD THEME SYSTEM: DARK THEME SPECIFICATION                        */
+/* Deep navy backgrounds, slightly lighter navy cards, light readable text  */
+/* ========================================================================= */
+
+html.dark body {
+  background-color: #080e1a;
+  color: #f1f5f9;
+}
+
+/* Main workspace container */
+html.dark .min-h-screen.bg-slate-50 {
+  background-color: #080e1a;
+  color: #f1f5f9;
+}
+
+/* White cards, panels, table containers & headers become deep navy cards */
+html.dark .bg-white {
+  background-color: #0f172a;
+}
+
+/* Subtle panel backgrounds (inner boxes, stat backgrounds, table headers) */
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/50 {
+  background-color: #111c35;
+}
+
+/* Elevated controls, pill containers, time filters, clocks */
+html.dark .bg-slate-100,
+html.dark .bg-slate-100\/80,
+html.dark .bg-slate-100\/90 {
+  background-color: #141f38;
+}
+
+/* Headings and primary text */
+html.dark .text-slate-900 {
+  color: #ffffff;
+}
+
+/* Body and prominent content text */
+html.dark .text-slate-800 {
+  color: #f1f5f9;
+}
+
+/* Secondary labels and values */
+html.dark .text-slate-700 {
+  color: #cbd5e1;
+}
+
+/* Descriptions and subtitles */
+html.dark .text-slate-600 {
+  color: #94a3b8;
+}
+
+/* Muted metadata and captions */
+html.dark .text-slate-500 {
+  color: #94a3b8;
+}
+
+html.dark .text-slate-400 {
+  color: #64748b;
+}
+
+/* Crisp dark borders */
+html.dark .border-slate-200,
+html.dark .border-slate-200\/90,
+html.dark .border-slate-200\/80,
+html.dark .border-slate-200\/60,
+html.dark .border-slate-100 {
+  border-color: #1e2c4d;
+}
+
+html.dark .border-slate-300 {
+  border-color: #27385e;
+}
+
+html.dark .divide-slate-100 > * + *,
+html.dark .divide-slate-200 > * + * {
+  border-color: #1e2c4d;
+}
+
+/* Form Controls & Inputs */
+html.dark input[type="text"],
+html.dark input[type="number"],
+html.dark select {
+  background-color: #101a30;
+  border-color: #1e2c4d;
+  color: #f8fafc;
+}
+
+html.dark input[type="text"]:focus,
+html.dark input[type="number"]:focus,
+html.dark select:focus {
+  background-color: #13203c;
+  border-color: #3b82f6;
+}
+
+html.dark option,
+html.dark optgroup {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+/* Tables */
+html.dark table thead {
+  background-color: #111c35;
+  color: #94a3b8;
+  border-color: #1e2c4d;
+}
+
+html.dark table tbody tr {
+  border-color: #1e2c4d;
+}
+
+html.dark table tbody tr:hover {
+  background-color: rgba(30, 44, 77, 0.45);
+}
+
+/* Progress and capacity bar tracks */
+html.dark .bg-slate-200 {
+  background-color: #1e2c4d;
+}
+
+/* Recharts Dark Styles */
+html.dark .recharts-cartesian-grid line {
+  stroke: #1e2c4d;
+}
+
+html.dark .recharts-text {
+  fill: #94a3b8 !important;
+}
+
+html.dark .recharts-cartesian-axis-line {
+  stroke: #1e2c4d !important;
+}
+
+/* Dark theme status badge and toast adaptations */
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-50\/95 {
+  background-color: rgba(6, 78, 59, 0.4);
+  color: #34d399;
+}
+html.dark .border-emerald-200 {
+  border-color: rgba(5, 150, 105, 0.4);
+}
+
+html.dark .bg-amber-50,
+html.dark .bg-amber-50\/95 {
+  background-color: rgba(120, 53, 15, 0.4);
+  color: #fbbf24;
+}
+html.dark .border-amber-200 {
+  border-color: rgba(217, 119, 6, 0.4);
+}
+
+html.dark .bg-orange-50,
+html.dark .bg-orange-50\/95 {
+  background-color: rgba(124, 45, 18, 0.4);
+  color: #fb923c;
+}
+html.dark .border-orange-200 {
+  border-color: rgba(234, 88, 12, 0.4);
+}
+
+html.dark .bg-rose-50,
+html.dark .bg-rose-50\/95,
+html.dark .bg-rose-50\/50,
+html.dark .bg-rose-50\/40 {
+  background-color: rgba(136, 19, 55, 0.4);
+  color: #f87171;
+}
+html.dark .border-rose-200,
+html.dark .border-rose-300 {
+  border-color: rgba(225, 29, 72, 0.4);
+}
+
+html.dark .bg-blue-50,
+html.dark .bg-blue-50\/95 {
+  background-color: rgba(30, 58, 138, 0.4);
+  color: #60a5fa;
+}
+html.dark .border-blue-200 {
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
+/* Modal and Dialog Overlay */
+html.dark .bg-slate-950\/60 {
+  background-color: rgba(4, 8, 16, 0.75);
 }
 
 /* Custom scrollbars */
@@ -36,6 +230,18 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #080e1a;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1e2c4d;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
 /* Pulsing radar effect */

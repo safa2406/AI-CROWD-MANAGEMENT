@@ -1,8 +1,8 @@
 {
   "camera_id": "CAM-02",
-  "camera_name": "Camera 2 - Entrance Turnstiles",
+  "camera_name": "Camera 2 - Metro Station Entrance",
   "location_id": 2,
-  "location_name": "Stadium Gate A & B Turnstiles",
+  "location_name": "Central Metro Station",
   "width": 854,
   "height": 480,
   "fps": 25.0,

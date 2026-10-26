@@ -37,6 +37,9 @@ async function apiRequest(endpoint, options = {}) {
   try {
     response = await fetch(url, config);
   } catch (networkErr) {
+    if (networkErr.name === "AbortError") {
+      throw networkErr;
+    }
     throw new ApiError(
       `Failed to connect to backend at ${API_BASE_URL}. Ensure Django server is running.`,
       0,

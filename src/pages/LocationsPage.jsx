@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useCrowd } from "../context/CrowdContext";
 import { AddLocationModal } from "../components/locations/AddLocationModal";
-import { StatusBadge, DemoBadge } from "../components/common/Badge";
+import { StatusBadge, AlertStatusBadge, DemoBadge } from "../components/common/Badge";
 import { EmptyState } from "../components/common/EmptyState";
 import { LOCATION_TYPE_OPTIONS } from "../data/mockData";
 import {
@@ -209,7 +209,20 @@ export function LocationsPage() {
                       </h4>
                       <p className="text-xs text-slate-500">{loc.zone}</p>
                     </div>
-                    <StatusBadge status={loc.status} size="sm" />
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-medium uppercase">Crowd:</span>
+                        <StatusBadge status={loc.status} size="sm" />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-medium uppercase">Alert:</span>
+                        <AlertStatusBadge
+                          status={loc.alertInfo?.status || "none"}
+                          label={loc.alertInfo?.badgeLabel || "NO ALERTS"}
+                          size="sm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -267,9 +280,15 @@ export function LocationsPage() {
                   <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium">
                     {loc.type}
                   </span>
-                  <span className="text-[11px] text-slate-500">
-                    Crowd Level: <strong className="text-slate-800">{loc.riskScore}/100</strong>
-                  </span>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                    <span>
+                      Alert: <strong className="text-slate-700 uppercase">{loc.alertInfo?.label || "No Alerts"}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Crowd Level: <strong className="text-slate-800">{loc.riskScore}/100</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -289,7 +308,8 @@ export function LocationsPage() {
                   <th className="py-3 px-4 font-semibold">Max Capacity</th>
                   <th className="py-3 px-4 font-semibold">Capacity Used</th>
                   <th className="py-3 px-4 font-semibold">Cameras</th>
-                  <th className="py-3 px-4 font-semibold text-right">Status</th>
+                  <th className="py-3 px-4 font-semibold">Crowd Status</th>
+                  <th className="py-3 px-4 font-semibold text-right">Alert Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -341,8 +361,15 @@ export function LocationsPage() {
                       <td className="py-3 px-4 font-mono text-slate-500">
                         {loc.cameraCount}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4">
                         <StatusBadge status={loc.status} size="sm" />
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <AlertStatusBadge
+                          status={loc.alertInfo?.status || "none"}
+                          label={loc.alertInfo?.badgeLabel || "NO ALERTS"}
+                          size="sm"
+                        />
                       </td>
                     </tr>
                   );

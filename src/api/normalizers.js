@@ -163,3 +163,117 @@ export function normalizeAlert(alert) {
   };
 }
 
+/**
+ * Evaluates the alert status for a given location based on actual Django alert records.
+ * Rules:
+ * 1. If an active alert exists -> status: 'active', label: 'Active Alert', badgeLabel: 'ACTIVE ALERT'
+ * 2. If an acknowledged alert exists -> status: 'acknowledged', label: 'Under Review', badgeLabel: 'UNDER REVIEW'
+ * 3. If the most recent relevant alert is resolved (and no active/acknowledged alert exists) -> status: 'resolved', label: 'Alert Resolved', badgeLabel: 'ALERT RESOLVED'
+ * 4. If no alert exists -> status: 'none', label: 'No Alerts', badgeLabel: 'NO ALERTS'
+ */
+export function getLocationAlertInfo(locationOrId, alerts = []) {
+  if (!locationOrId || !alerts || !alerts.length) {
+    return {
+      status: "none",
+      label: "No Alerts",
+      badgeLabel: "NO ALERTS",
+      alert: null,
+      hasActiveAlert: false,
+    };
+  }
+
+  const numericId =
+    typeof locationOrId === "object"
+      ? (locationOrId.numericId ??
+        locationOrId.rawId ??
+        (typeof locationOrId.id === "number"
+          ? locationOrId.id
+          : parseInt(String(locationOrId.id || "").replace(/\D/g, ""), 10)))
+      : typeof locationOrId === "number"
+      ? locationOrId
+      : parseInt(String(locationOrId).replace(/\D/g, ""), 10);
+
+  const locName = typeof locationOrId === "object" ? locationOrId.name : null;
+
+  // Filter alerts for this location (matching by numeric location ID, location string ID, or location name)
+  const locDisplayId = typeof locationOrId === "object" ? locationOrId.id : null;
+
+  const locAlerts = alerts.filter((a) => {
+    if (
+      numericId &&
+      (a.location === numericId ||
+        String(a.location) === String(numericId) ||
+        a.locationId === String(numericId) ||
+        a.locationId === `LOC-${numericId}` ||
+        a.locationId === `LOC-${100 + numericId}`)
+    ) {
+      return true;
+    }
+    if (locDisplayId && (a.locationId === locDisplayId || String(a.location) === locDisplayId)) {
+      return true;
+    }
+    if (locName && a.locationName && a.locationName.toLowerCase() === locName.toLowerCase()) {
+      return true;
+    }
+    return false;
+  });
+
+  if (!locAlerts.length) {
+    return {
+      status: "none",
+      label: "No Alerts",
+      badgeLabel: "NO ALERTS",
+      alert: null,
+      hasActiveAlert: false,
+    };
+  }
+
+  // Priority 1: Active alert exists
+  const activeAlert = locAlerts.find((a) => a.status === "active");
+  if (activeAlert) {
+    return {
+      status: "active",
+      label: "Active Alert",
+      badgeLabel: "ACTIVE ALERT",
+      alert: activeAlert,
+      hasActiveAlert: true,
+      severity: activeAlert.severity,
+    };
+  }
+
+  // Priority 2: Acknowledged alert exists
+  const acknowledgedAlert = locAlerts.find((a) => a.status === "acknowledged");
+  if (acknowledgedAlert) {
+    return {
+      status: "acknowledged",
+      label: "Under Review",
+      badgeLabel: "UNDER REVIEW",
+      alert: acknowledgedAlert,
+      hasActiveAlert: false,
+      severity: acknowledgedAlert.severity,
+    };
+  }
+
+  // Priority 3: Resolved alert (most recent)
+  const resolvedAlert = locAlerts.find((a) => a.status === "resolved");
+  if (resolvedAlert) {
+    return {
+      status: "resolved",
+      label: "Alert Resolved",
+      badgeLabel: "ALERT RESOLVED",
+      alert: resolvedAlert,
+      hasActiveAlert: false,
+      severity: resolvedAlert.severity,
+    };
+  }
+
+  return {
+    status: "none",
+    label: "No Alerts",
+    badgeLabel: "NO ALERTS",
+    alert: null,
+    hasActiveAlert: false,
+  };
+}
+
+

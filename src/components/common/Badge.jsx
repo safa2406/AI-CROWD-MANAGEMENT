@@ -69,27 +69,45 @@ export function SeverityBadge({ severity }) {
   );
 }
 
-export function AlertStatusBadge({ status }) {
+export function AlertStatusBadge({ status, size = "md", label, showDot = true }) {
   const norm = (status || "").toLowerCase();
   const styles = {
     active: "bg-rose-50 text-rose-700 border-rose-300",
     acknowledged: "bg-blue-50 text-blue-700 border-blue-200",
     resolved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    none: "bg-slate-50 text-slate-500 border-slate-200",
+  };
+
+  const dots = {
+    active: "bg-rose-500 animate-ping",
+    acknowledged: "bg-blue-500",
+    resolved: "bg-emerald-500",
+    none: "bg-slate-400",
   };
 
   const labels = {
     active: "Active",
     acknowledged: "Under Review",
     resolved: "Resolved",
+    none: "No Alerts",
   };
+
+  const displayLabel = label || labels[norm] || status;
+  const sizeClasses =
+    size === "sm"
+      ? "px-2 py-0.5 text-xs font-semibold uppercase tracking-wider"
+      : "px-2.5 py-0.5 text-xs font-medium";
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full border ${
+      className={`inline-flex items-center gap-1.5 border rounded-full ${
         styles[norm] || "bg-slate-100 text-slate-700 border-slate-200"
-      }`}
+      } ${sizeClasses}`}
     >
-      {labels[norm] || status}
+      {showDot && dots[norm] && (
+        <span className={`w-1.5 h-1.5 rounded-full ${dots[norm]}`} />
+      )}
+      {displayLabel}
     </span>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useCrowd } from "../../context/CrowdContext";
 import { CAMERA_FEEDS } from "../../data/cameraFeeds";
 import { VideoDetectionOverlay } from "./VideoDetectionOverlay";
-import { StatusBadge } from "../common/Badge";
+import { StatusBadge, AlertStatusBadge } from "../common/Badge";
 import {
   AlertCircle,
   LayoutGrid,
@@ -307,7 +307,14 @@ export function CameraFeedCard() {
                           {loc.name}
                         </span>
                       </div>
-                      <StatusBadge status={loc.status} size="sm" />
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <StatusBadge status={loc.status} size="sm" />
+                        <AlertStatusBadge
+                          status={loc.alertInfo?.status || "none"}
+                          label={loc.alertInfo?.badgeLabel || "NO ALERTS"}
+                          size="sm"
+                        />
+                      </div>
                     </div>
 
                     {/* Camera Viewport vs Venue Database Telemetry */}
@@ -491,8 +498,23 @@ export function CameraFeedCard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+        <div className="flex items-center gap-3 text-slate-400 text-[11px] flex-wrap">
           <span>Lens: {activeCamera.lensType}</span>
+          <span>•</span>
+          <span>
+            Sector: <strong className="text-white">{activeLoc.name}</strong>
+          </span>
+          <span>•</span>
+          <div className="inline-flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-400 uppercase">Crowd:</span>
+            <StatusBadge status={activeLoc.status} size="sm" />
+            <span className="text-[10px] text-slate-400 uppercase ml-1">Alert:</span>
+            <AlertStatusBadge
+              status={activeLoc.alertInfo?.status || "none"}
+              label={activeLoc.alertInfo?.badgeLabel || "NO ALERTS"}
+              size="sm"
+            />
+          </div>
           <span>•</span>
           <span>
             Selected: <strong className="text-white">{activeCamera.id}</strong> (

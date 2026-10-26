@@ -1,12 +1,121 @@
-import React from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCrowd } from "../../context/CrowdContext";
-import { StatusBadge } from "../common/Badge";
-import { Video, ArrowUpRight, TrendingUp, TrendingDown } from "lucide-react";
+import { StatusBadge, AlertStatusBadge } from "../common/Badge";
+import { Video, ArrowUpRight, TrendingUp, TrendingDown, Activity } from "lucide-react";
 
 export function LocationStatusTable() {
   const { locations, setSelectedCameraId } = useCrowd();
   const navigate = useNavigate();
+
+  // Maintain previous crowd counts and timestamps per location to derive dynamic flow
+  const locationHistoryRef = useRef({});
+  const [tick, setTick] = useState(0);
+
+  // Periodic interval to settle flow indicator to Steady after count changes
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 2500);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Compute dynamic flow rates matching Live Camera Feeds logic (without simulated movement when unchanged)
+  const flows = useMemo(() => {
+    const now = Date.now();
+    const result = {};
+
+    locations.forEach((loc) => {
+      const id = loc.id;
+      const currentCount = Number(loc.currentCount) || 0;
+      const history = locationHistoryRef.current[id];
+
+      if (!history) {
+        // First observation: record baseline and present a neutral waiting state
+        locationHistoryRef.current[id] = {
+          prevCount: currentCount,
+          lastObservedTime: now,
+          lastChangeTime: 0,
+          measuredRate: 0,
+          measuredDirection: null,
+          isInitial: true,
+        };
+
+        result[id] = {
+          type: "initial",
+          direction: "neutral",
+          rate: 0,
+          text: "Evaluating...",
+          isPositive: null,
+        };
+        return;
+      }
+
+      const timeDeltaSec = Math.max(1, (now - history.lastObservedTime) / 1000);
+      const countDelta = currentCount - history.prevCount;
+
+      if (countDelta !== 0) {
+        // Real measured change from YOLO / backend
+        const rawRate = Math.round((Math.abs(countDelta) / timeDeltaSec) * 60);
+        const boundedRate = Math.min(80, Math.max(4, rawRate));
+        const direction = countDelta > 0 ? "inflow" : "outflow";
+
+        history.prevCount = currentCount;
+        history.lastObservedTime = now;
+        history.lastChangeTime = now;
+        history.measuredRate = boundedRate;
+        history.measuredDirection = direction;
+        history.isInitial = false;
+
+        result[id] = {
+          type: "measured",
+          direction,
+          rate: boundedRate,
+          text:
+            direction === "inflow"
+              ? `+${boundedRate}/min net inflow`
+              : `-${boundedRate}/min net outflow`,
+          isPositive: direction === "inflow",
+        };
+      } else {
+        // Count is unchanged
+        const secondsSinceChange = (now - history.lastChangeTime) / 1000;
+
+        // Briefly retain real measured direction if change occurred recently (< 6 seconds)
+        if (
+          !history.isInitial &&
+          history.lastChangeTime > 0 &&
+          secondsSinceChange < 6 &&
+          history.measuredDirection
+        ) {
+          result[id] = {
+            type: "measured",
+            direction: history.measuredDirection,
+            rate: history.measuredRate,
+            text:
+              history.measuredDirection === "inflow"
+                ? `+${history.measuredRate}/min net inflow`
+                : `-${history.measuredRate}/min net outflow`,
+            isPositive: history.measuredDirection === "inflow",
+          };
+        } else {
+          // Count remains unchanged: display Steady (no simulated flow)
+          history.isInitial = false;
+          result[id] = {
+            type: "steady",
+            direction: "steady",
+            rate: 0,
+            text: "Steady",
+            isPositive: null,
+          };
+        }
+        history.lastObservedTime = now;
+      }
+    });
+
+    return result;
+  }, [locations, tick]);
 
   const handleViewFeed = (locationId) => {
     const cameraMap = {
@@ -58,7 +167,8 @@ export function LocationStatusTable() {
               <th className="py-3 px-4 font-semibold">Crowd / Capacity</th>
               <th className="py-3 px-4 font-semibold">Capacity Used</th>
               <th className="py-3 px-4 font-semibold">Crowd Flow</th>
-              <th className="py-3 px-4 font-semibold">Status</th>
+              <th className="py-3 px-4 font-semibold">Crowd Status</th>
+              <th className="py-3 px-4 font-semibold">Alert Status</th>
               <th className="py-3 px-4 font-semibold text-right">Camera</th>
             </tr>
           </thead>
@@ -68,7 +178,13 @@ export function LocationStatusTable() {
                 100,
                 Math.round((loc.currentCount / loc.capacity) * 100)
               );
-              const isPositiveFlow = loc.flowRate?.startsWith("+");
+              const flowInfo = flows[loc.id] || {
+                type: "steady",
+                direction: "steady",
+                rate: 0,
+                text: "Steady",
+                isPositive: null,
+              };
 
               return (
                 <tr
@@ -111,22 +227,42 @@ export function LocationStatusTable() {
                   </td>
                   <td className="py-3.5 px-4">
                     <div className="text-slate-700 font-medium">{loc.densitySqm}</div>
-                    <div className="flex items-center gap-1 text-[11px]">
-                      {isPositiveFlow ? (
+                    <div
+                      className="flex items-center gap-1 text-[11px]"
+                      title="Estimated net flow derived from YOLO detection count changes over time (not gate tracking)."
+                    >
+                      {flowInfo.direction === "inflow" ? (
                         <span className="text-rose-600 flex items-center font-medium">
                           <TrendingUp className="w-3 h-3 mr-0.5" />
-                          {loc.flowRate} entering
+                          {flowInfo.text}
                         </span>
-                      ) : (
+                      ) : flowInfo.direction === "outflow" ? (
                         <span className="text-emerald-600 flex items-center font-medium">
                           <TrendingDown className="w-3 h-3 mr-0.5" />
-                          {loc.flowRate} leaving
+                          {flowInfo.text}
+                        </span>
+                      ) : flowInfo.type === "initial" ? (
+                        <span className="text-slate-500 flex items-center font-medium">
+                          <Activity className="w-3 h-3 mr-0.5 text-slate-400 animate-pulse" />
+                          Evaluating...
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 flex items-center font-medium">
+                          <Activity className="w-3 h-3 mr-0.5 text-slate-400" />
+                          Steady
                         </span>
                       )}
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
                     <StatusBadge status={loc.status} size="sm" />
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <AlertStatusBadge
+                      status={loc.alertInfo?.status || "none"}
+                      label={loc.alertInfo?.badgeLabel || "NO ALERTS"}
+                      size="sm"
+                    />
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button

@@ -17,9 +17,9 @@ from ultralytics import YOLO
 
 CAMERA_CONFIGS = {
     "CAM-01": {
-        "name": "Camera 1 - Platform 2 East",
+        "name": "Camera 1 - Street Pathway",
         "location_id": 1,
-        "location_name": "Central Metro Interchange",
+        "location_name": "Street Pathway",
         "video_path": Path("vision") / "videos" / "crowd_test.mp4",
         "json_out": Path("public") / "detections" / "cam-01.json",
         "annotated_video_out": Path("public") / "videos" / "cam-01-detected.mp4",
@@ -28,9 +28,9 @@ CAMERA_CONFIGS = {
         "iou": 0.70,
     },
     "CAM-02": {
-        "name": "Camera 2 - Entrance Turnstiles",
+        "name": "Camera 2 - Metro Station Entrance",
         "location_id": 2,
-        "location_name": "Stadium Gate A & B Turnstiles",
+        "location_name": "Central Metro Station",
         "video_path": Path("vision") / "videos" / "cam_02.mp4",
         "json_out": Path("public") / "detections" / "cam-02.json",
         "annotated_video_out": Path("public") / "videos" / "cam-02-detected.mp4",
@@ -39,9 +39,9 @@ CAMERA_CONFIGS = {
         "iou": 0.70,
     },
     "CAM-03": {
-        "name": "Camera 3 - Concourse Junction",
+        "name": "Camera 3 - Market Square",
         "location_id": 5,
-        "location_name": "East Grandstand Promenade",
+        "location_name": "City Market Square",
         "video_path": Path("vision") / "videos" / "cam_03.mp4",
         "json_out": Path("public") / "detections" / "cam-03.json",
         "annotated_video_out": Path("public") / "videos" / "cam-03-detected.mp4",
@@ -50,9 +50,9 @@ CAMERA_CONFIGS = {
         "iou": 0.55,
     },
     "CAM-04": {
-        "name": "Camera 4 - Departures Hall",
+        "name": "Camera 4 - Railway Station Hall",
         "location_id": 3,
-        "location_name": "North Terminal Concourse",
+        "location_name": "Railway Station Hall",
         "video_path": Path("vision") / "videos" / "cam_04.mp4",
         "json_out": Path("public") / "detections" / "cam-04.json",
         "annotated_video_out": Path("public") / "videos" / "cam-04-detected.mp4",

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, Bell, ShieldAlert, Clock } from "lucide-react";
+import { Menu, Bell, ShieldAlert, Clock, Sun, Moon } from "lucide-react";
 import { useCrowd } from "../../context/CrowdContext";
+import { useTheme } from "../../context/ThemeContext";
 import { DemoBadge } from "../common/Badge";
 
 export function Header({ onOpenSidebar }) {
   const location = useLocation();
   const { activeAlertsCount, highRiskLocationsCount, dataSourceMode, error } = useCrowd();
+  const { theme, toggleTheme } = useTheme();
   const [timeStr, setTimeStr] = useState("");
 
   useEffect(() => {
@@ -122,6 +124,33 @@ export function Header({ onOpenSidebar }) {
             <span>{highRiskLocationsCount} Busy Areas</span>
           </Link>
         )}
+
+        {/* Compact Sun/Moon Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === "dark" ? "Light" : "Dark"} theme`}
+          title={`Switch to ${theme === "dark" ? "Light" : "Dark"} theme`}
+          className="flex items-center gap-0.5 p-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 transition-colors border border-slate-200 cursor-pointer"
+        >
+          <span
+            className={`p-1 rounded-md transition-all flex items-center justify-center ${
+              theme === "light"
+                ? "bg-white text-amber-500 shadow-2xs"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5" />
+          </span>
+          <span
+            className={`p-1 rounded-md transition-all flex items-center justify-center ${
+              theme === "dark"
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <Moon className="w-3.5 h-3.5" />
+          </span>
+        </button>
 
         {/* Alert Bell Button */}
         <Link
