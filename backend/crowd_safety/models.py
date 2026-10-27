@@ -41,6 +41,9 @@ class Location(models.Model):
     @property
     def latest_reading(self):
         """Retrieve the most recent crowd reading for this location."""
+        if hasattr(self, '_prefetched_objects_cache') and 'readings' in self._prefetched_objects_cache:
+            prefetched = self._prefetched_objects_cache['readings']
+            return prefetched[0] if prefetched else None
         return self.readings.order_by('-timestamp').first()
 
     @property

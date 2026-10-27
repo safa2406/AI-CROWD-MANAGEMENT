@@ -9,6 +9,11 @@ from .views import (
     AlertAcknowledgeView,
     AlertResolveView,
     DashboardSummaryView,
+    WebcamStatusView,
+    WebcamStartView,
+    WebcamStopView,
+    WebcamConfigureView,
+    WebcamFeedProxyView,
 )
 
 urlpatterns = [
@@ -28,5 +33,12 @@ urlpatterns = [
 
     # Dashboard summary endpoint
     path('dashboard/summary/', DashboardSummaryView.as_view(), name='dashboard-summary'),
+
+    # Live Webcam Demonstration endpoints
+    path('webcam/status/', WebcamStatusView.as_view(), name='webcam-status'),
+    path('webcam/start/', WebcamStartView.as_view(), name='webcam-start'),
+    path('webcam/stop/', WebcamStopView.as_view(), name='webcam-stop'),
+    path('webcam/configure/', WebcamConfigureView.as_view(), name='webcam-configure'),
+    path('webcam/feed/', WebcamFeedProxyView.as_view(), name='webcam-feed'),
 ]
 

@@ -1,3 +1,4 @@
+from unittest.mock import patch, MagicMock
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import status
@@ -374,4 +375,150 @@ class DashboardSummaryAPITests(APITestCase):
 
         # Hourly Crowd Trends present as a list
         self.assertIsInstance(data['hourly_crowd_trends'], list)
+
+
+class WebcamDemonstrationTests(APITestCase):
+    def setUp(self):
+        self.demo_loc = Location.objects.create(
+            name="Live Demonstration Area",
+            location_type="General Venue",
+            address="Zone DEMO - Live Webcam Feed",
+            safe_capacity=5,
+        )
+
+    def test_webcam_status_endpoint(self):
+        """Test GET /api/webcam/status/ returns proper structure and demo location info."""
+        res = self.client.get('/api/webcam/status/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('is_running', res.data)
+        self.assertIn('demo_location', res.data)
+        self.assertEqual(res.data['demo_location']['name'], "Live Demonstration Area")
+        self.assertEqual(res.data['demo_location']['safe_capacity'], 5)
+
+    def test_webcam_configure_capacity_endpoint(self):
+        """Test GET and POST /api/webcam/configure/ to configure demonstration capacity dynamically."""
+        # GET config
+        res_get = self.client.get('/api/webcam/configure/')
+        self.assertEqual(res_get.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_get.data['safe_capacity'], 5)
+
+        # POST update capacity to 8
+        res_post = self.client.post('/api/webcam/configure/', {'safe_capacity': 8}, format='json')
+        self.assertEqual(res_post.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_post.data['safe_capacity'], 8)
+        self.demo_loc.refresh_from_db()
+        self.assertEqual(self.demo_loc.safe_capacity, 8)
+
+        # Reset back to 5 for subsequent demonstration tests
+        self.client.post('/api/webcam/configure/', {'safe_capacity': 5}, format='json')
+
+    def test_demonstration_capacity_alert_generation_flow(self):
+        """
+        Verify the exact college review demonstration requirements with capacity = 5:
+        - 0-3 people (0-60%): Normal/Moderate, no alert
+        - 4 people (80%): High alert generated
+        - 5 people (100%): Critical alert generated and takes precedence
+        """
+        loc = self.demo_loc
+        self.assertEqual(loc.safe_capacity, 5)
+
+        # 1. 3 people detected (60% occupancy) -> No alert
+        res1 = self.client.post('/api/readings/', {
+            'location': loc.id,
+            'crowd_count': 3,
+            'data_source': 'cctv_ai_detection'
+        }, format='json')
+        self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res1.data['occupancy_percentage'], 60.0)
+        self.assertEqual(Alert.objects.filter(location=loc).count(), 0)
+
+        # 2. 4 people detected (80% occupancy >= 75%) -> High alert generated
+        res2 = self.client.post('/api/readings/', {
+            'location': loc.id,
+            'crowd_count': 4,
+            'data_source': 'cctv_ai_detection'
+        }, format='json')
+        self.assertEqual(res2.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res2.data['occupancy_percentage'], 80.0)
+        high_alerts = Alert.objects.filter(location=loc, status='active')
+        self.assertEqual(high_alerts.count(), 1)
+        self.assertEqual(high_alerts.first().severity, 'high')
+
+        # 3. 5 people detected (100% occupancy >= 90%) -> Critical alert takes precedence (escalated)
+        res3 = self.client.post('/api/readings/', {
+            'location': loc.id,
+            'crowd_count': 5,
+            'data_source': 'cctv_ai_detection'
+        }, format='json')
+        self.assertEqual(res3.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res3.data['occupancy_percentage'], 100.0)
+        active_alerts = Alert.objects.filter(location=loc, status='active')
+        self.assertEqual(active_alerts.count(), 1)
+        self.assertEqual(active_alerts.first().severity, 'critical')
+
+        # 4. Count drops to 4 people (80%): Critical alert is NOT downgraded to high
+        res4 = self.client.post('/api/readings/', {
+            'location': loc.id,
+            'crowd_count': 4,
+            'data_source': 'cctv_ai_detection'
+        }, format='json')
+        self.assertEqual(res4.status_code, status.HTTP_201_CREATED)
+        active_alerts_after = Alert.objects.filter(location=loc, status='active')
+        self.assertEqual(active_alerts_after.count(), 1)
+        self.assertEqual(active_alerts_after.first().severity, 'critical')
+
+    @patch('crowd_safety.views.query_webcam_service')
+    def test_webcam_status_view_with_active_runner(self, mock_query):
+        """Test GET /api/webcam/status/ when runner service reports active capture."""
+        mock_query.return_value = (200, {
+            'is_running': True,
+            'is_starting': False,
+            'camera_index': 0,
+            'crowd_count': 3,
+            'fps': 24.2,
+            'error': None,
+        })
+        res = self.client.get('/api/webcam/status/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data['is_running'])
+        self.assertTrue(res.data['is_service_active'])
+        self.assertEqual(res.data['crowd_count'], 3)
+        self.assertEqual(res.data['fps'], 24.2)
+
+    @patch('crowd_safety.views.query_webcam_service')
+    def test_webcam_status_view_with_offline_runner(self, mock_query):
+        """Test GET /api/webcam/status/ when runner service is unreachable (timeout/error)."""
+        mock_query.return_value = (None, {'error': 'timed out'})
+        res = self.client.get('/api/webcam/status/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(res.data['is_running'])
+        self.assertFalse(res.data['is_service_active'])
+
+    @patch('crowd_safety.views.ensure_webcam_service_running')
+    @patch('crowd_safety.views.query_webcam_service')
+    def test_webcam_start_view_success(self, mock_query, mock_ensure):
+        """Test POST /api/webcam/start/ launches webcam successfully."""
+        mock_ensure.return_value = (True, "Webcam runner service is active.")
+        mock_query.return_value = (200, {
+            'success': True,
+            'message': 'Webcam capture started successfully.',
+            'status': {'is_running': True, 'camera_index': 0}
+        })
+        res = self.client.post('/api/webcam/start/', {'camera_index': 0}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data['success'])
+
+    @patch('crowd_safety.views.query_webcam_service')
+    def test_webcam_stop_view(self, mock_query):
+        """Test POST /api/webcam/stop/ safely releases camera."""
+        mock_query.return_value = (200, {
+            'success': True,
+            'message': 'Webcam stopped successfully.',
+            'status': {'is_running': False}
+        })
+        res = self.client.post('/api/webcam/stop/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data['success'])
+
+
 

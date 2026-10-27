@@ -100,6 +100,18 @@ class Command(BaseCommand):
             )
         )
 
+        # Ensure dedicated demonstration location exists
+        Location.objects.get_or_create(
+            name="Live Demonstration Area",
+            defaults={
+                "location_type": "General Venue",
+                "address": "Zone DEMO - Live Webcam Feed",
+                "safe_capacity": 5,
+                "latitude": Decimal("40.750000"),
+                "longitude": Decimal("-73.985000"),
+            }
+        )
+
         # 2. Seed Simulated Historical Readings
         # Create hourly historical data over the last 8 hours up to now
         total_readings_seeded = 0

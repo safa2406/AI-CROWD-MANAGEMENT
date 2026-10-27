@@ -28,23 +28,61 @@ async function apiRequest(endpoint, options = {}) {
     ...options.headers,
   };
 
+  const timeoutMs = options.timeout ?? 8000;
+  const controller = new AbortController();
+  let timeoutId = null;
+
+  let onCallerAbort = null;
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort(options.signal.reason);
+    } else {
+      onCallerAbort = () => controller.abort(options.signal.reason);
+      options.signal.addEventListener("abort", onCallerAbort, { once: true });
+    }
+  }
+
+  let didTimeout = false;
+  if (timeoutMs > 0) {
+    timeoutId = setTimeout(() => {
+      didTimeout = true;
+      controller.abort(new Error(`Request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  }
+
   const config = {
     ...options,
     headers,
+    signal: controller.signal,
   };
 
   let response;
   try {
     response = await fetch(url, config);
   } catch (networkErr) {
-    if (networkErr.name === "AbortError") {
-      throw networkErr;
+    if (didTimeout) {
+      throw new ApiError(
+        `Request to ${endpoint} timed out after ${timeoutMs}ms. Backend may be overloaded or unreachable.`,
+        408
+      );
+    }
+    if (options.signal?.aborted || networkErr.name === "AbortError") {
+      const abortErr = new Error("The operation was aborted");
+      abortErr.name = "AbortError";
+      throw abortErr;
     }
     throw new ApiError(
       `Failed to connect to backend at ${API_BASE_URL}. Ensure Django server is running.`,
       0,
       { originalError: networkErr.message }
     );
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (options.signal && onCallerAbort) {
+      options.signal.removeEventListener("abort", onCallerAbort);
+    }
   }
 
   // Handle empty 204 No Content
@@ -174,5 +212,52 @@ export const crowdApi = {
       method: "POST",
       body: JSON.stringify(readingData),
     });
+  },
+
+  /**
+   * Fetch live webcam demonstration status and telemetry
+   * GET /api/webcam/status/
+   */
+  async getWebcamStatus(signal) {
+    return apiRequest("webcam/status/", { method: "GET", signal });
+  },
+
+  /**
+   * Start live webcam capture and YOLO detection
+   * POST /api/webcam/start/
+   */
+  async startWebcam(cameraIndex = 0) {
+    return apiRequest("webcam/start/", {
+      method: "POST",
+      body: JSON.stringify({ camera_index: cameraIndex }),
+    });
+  },
+
+  /**
+   * Stop live webcam capture and release camera
+   * POST /api/webcam/stop/
+   */
+  async stopWebcam() {
+    return apiRequest("webcam/stop/", {
+      method: "POST",
+    });
+  },
+
+  /**
+   * Configure demonstration location safe capacity
+   * POST /api/webcam/configure/
+   */
+  async configureWebcamCapacity(capacity) {
+    return apiRequest("webcam/configure/", {
+      method: "POST",
+      body: JSON.stringify({ safe_capacity: capacity }),
+    });
+  },
+
+  /**
+   * Get direct webcam feed URL
+   */
+  getWebcamFeedUrl() {
+    return `${API_BASE_URL.replace(/\/+$/, "")}/webcam/feed/`;
   },
 };

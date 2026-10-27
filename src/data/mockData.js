@@ -94,6 +94,22 @@ export const INITIAL_LOCATIONS = [
     densitySqm: "1.1 people/m²",
     lastUpdated: "Just now",
   },
+  {
+    id: "LOC-DEMO",
+    numericId: 7,
+    name: "Live Demonstration Area",
+    type: "General Venue",
+    zone: "Zone DEMO - Live Webcam Feed",
+    capacity: 5,
+    currentCount: 0,
+    status: "safe", // 0%
+    cameraCount: 1,
+    flowRate: "0/min",
+    riskScore: 0,
+    activeAlertsCount: 0,
+    densitySqm: "0.0 people/m²",
+    lastUpdated: "Just now",
+  },
 ];
 
 export const INITIAL_ALERTS = [

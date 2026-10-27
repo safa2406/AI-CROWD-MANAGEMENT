@@ -16,10 +16,12 @@ export function normalizeLocation(loc) {
       ? loc.id
       : parseInt(String(loc.id).replace(/\D/g, ""), 10) || 1;
 
-  // Use matching LOC-101..LOC-106 code for seeded locations, or LOC-<id> for others
+  // Use matching LOC-101..LOC-106 code for seeded locations, LOC-DEMO for demo area, or LOC-<id> for others
   const displayId =
     typeof loc.id === "string" && loc.id.startsWith("LOC-")
       ? loc.id
+      : loc.name === "Live Demonstration Area" || String(loc.id) === "LOC-DEMO"
+      ? "LOC-DEMO"
       : numericId <= 6
       ? `LOC-${100 + numericId}`
       : `LOC-${numericId}`;

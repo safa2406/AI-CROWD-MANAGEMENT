@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useCrowd } from "../context/CrowdContext";
 import { CameraFeedCard } from "../components/live/CameraFeedCard";
+import { LiveWebcamViewport } from "../components/live/LiveWebcamViewport";
 import { StatusBadge, AlertStatusBadge, DemoBadge } from "../components/common/Badge";
 import {
   Video,
@@ -8,10 +9,13 @@ import {
   TrendingDown,
   Camera,
   Activity,
+  Film,
+  Sparkles,
 } from "lucide-react";
 
 export function LiveMonitoringPage() {
   const { locations, setSelectedCameraId } = useCrowd();
+  const [cameraSource, setCameraSource] = useState("recorded"); // 'recorded' | 'webcam'
 
   // Maintain previous crowd counts and timestamps per location to derive dynamic flow
   const locationHistoryRef = useRef({});
@@ -167,29 +171,66 @@ export function LiveMonitoringPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header Notice */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs">
+      {/* Page Header Notice with Camera Source Selector */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Live Camera Monitoring
             </h2>
-            <DemoBadge label="PRERECORDED DEMO FEEDS" />
+            {cameraSource === "webcam" ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                LIVE WEBCAM MODE
+              </span>
+            ) : (
+              <DemoBadge label="PRERECORDED DEMO FEEDS" />
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Watch 4 prerecorded camera feeds with AI detection and check real-time crowd levels at each location
+            {cameraSource === "webcam"
+              ? "Live laptop webcam video feed with real-time YOLOv8n people detection and alert generation"
+              : "Watch 4 prerecorded camera feeds with AI detection and check real-time crowd levels at each location"}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-medium">4 Active Cameras</span>
+        {/* Camera Source Selector: Recorded Video vs Live Webcam */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 self-start md:self-auto">
+          <button
+            onClick={() => setCameraSource("recorded")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              cameraSource === "recorded"
+                ? "bg-white text-blue-700 shadow-xs border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Film className="w-3.5 h-3.5 text-blue-600" />
+            <span>Recorded Video</span>
+          </button>
+          <button
+            onClick={() => setCameraSource("webcam")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              cameraSource === "webcam"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>Live Webcam</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500 text-white">
+              LIVE
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* Dedicated Monitoring Area: Simulated Camera Viewport */}
+      {/* Main Monitoring Viewport: Recorded Matrix OR Live Laptop Webcam */}
       <div>
-        <CameraFeedCard />
+        {cameraSource === "recorded" ? (
+          <CameraFeedCard onSwitchToWebcam={() => setCameraSource("webcam")} />
+        ) : (
+          <LiveWebcamViewport onSwitchToRecorded={() => setCameraSource("recorded")} />
+        )}
       </div>
 
       {/* Individual Location Monitoring Cards */}

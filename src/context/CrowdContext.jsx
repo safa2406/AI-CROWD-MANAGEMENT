@@ -44,6 +44,7 @@ export function CrowdProvider({ children }) {
   const [selectedCameraId, setSelectedCameraId] = useState("CAM-01");
   const [toasts, setToasts] = useState([]);
   const toastSeqRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
   // Toast dispatch helper
   const addToast = useCallback((message, type = "info") => {
@@ -73,20 +74,36 @@ export function CrowdProvider({ children }) {
    */
   const fetchBackendData = useCallback(
     async (signal, isManualRetry = false, isSilent = false) => {
+      // Avoid overlapping background polling fetches
+      if (isSilent && isFetchingRef.current) {
+        return;
+      }
+      isFetchingRef.current = true;
+
       if (!isSilent) {
         setIsLoading(true);
         setError(null);
       }
 
       try {
-        const [summaryRes, locationsRes, alertsRes] = await Promise.all([
+        const [summaryRes, alertsRes] = await Promise.all([
           crowdApi.getDashboardSummary(signal),
-          crowdApi.getLocations(signal),
           crowdApi.getAlerts({}, signal),
         ]);
 
-        if (Array.isArray(locationsRes)) {
-          setLocations(locationsRes.map(normalizeLocation));
+        if (signal?.aborted) return;
+
+        // Use locations embedded in summaryRes if available (avoids duplicate /api/locations/ queries)
+        let rawLocations = Array.isArray(summaryRes?.locations) ? summaryRes.locations : null;
+        if (!rawLocations && !signal?.aborted) {
+          const locRes = await crowdApi.getLocations(signal);
+          if (Array.isArray(locRes)) {
+            rawLocations = locRes;
+          }
+        }
+
+        if (rawLocations) {
+          setLocations(rawLocations.map(normalizeLocation));
         }
 
         if (Array.isArray(alertsRes)) {
@@ -119,6 +136,7 @@ export function CrowdProvider({ children }) {
           addToast(msg, "error");
         }
       } finally {
+        isFetchingRef.current = false;
         if (!isSilent) {
           setIsLoading(false);
         }

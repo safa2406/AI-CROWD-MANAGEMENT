@@ -3,10 +3,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.db import connection
 from django.utils import timezone
 import sys
+import time
+import json
+import socket
+import urllib.request
+import urllib.error
+import subprocess
+from pathlib import Path
 import django
 
 from .models import Location, CrowdReading, Alert
@@ -166,6 +173,250 @@ class DashboardSummaryView(APIView):
     def get(self, request):
         summary_data = get_dashboard_summary()
         return Response(summary_data, status=status.HTTP_200_OK)
+
+
+# ==========================================
+# Live Webcam Demonstration Endpoints
+# ==========================================
+
+WEBCAM_SERVICE_HOST = "127.0.0.1"
+WEBCAM_SERVICE_PORT = 8001
+WEBCAM_SERVICE_URL = f"http://{WEBCAM_SERVICE_HOST}:{WEBCAM_SERVICE_PORT}"
+
+
+def get_demo_location():
+    """Retrieves or creates the dedicated demonstration location with default capacity 5."""
+    loc, _ = Location.objects.get_or_create(
+        name="Live Demonstration Area",
+        defaults={
+            "location_type": "General Venue",
+            "address": "Zone DEMO - Live Webcam Feed",
+            "safe_capacity": 5,
+        }
+    )
+    return loc
+
+
+def is_service_port_open(port=WEBCAM_SERVICE_PORT, host=WEBCAM_SERVICE_HOST):
+    """Checks if the webcam runner port is currently open and accepting connections."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            return s.connect_ex((host, port)) == 0
+    except Exception:
+        return False
+
+
+def query_webcam_service(path, method="GET", data=None, timeout=3.0):
+    """Communicates with the background Python vision webcam module."""
+    url = f"{WEBCAM_SERVICE_URL}{path}"
+    req_data = json.dumps(data).encode("utf-8") if data else None
+    headers = {"Content-Type": "application/json"} if req_data else {}
+    req = urllib.request.Request(url, data=req_data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8")
+            return resp.status, json.loads(body)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8")
+        try:
+            return e.code, json.loads(body)
+        except Exception:
+            return e.code, {"error": body}
+    except Exception as e:
+        return None, {"error": str(e)}
+
+
+def ensure_webcam_service_running():
+    """Ensures the Python vision webcam runner process is active; launches if needed."""
+    code, _ = query_webcam_service("/health", timeout=1.5)
+    if code == 200:
+        return True, "Webcam runner service is active."
+
+    # If port 8001 is already listening, avoid launching duplicate processes
+    if is_service_port_open():
+        code, _ = query_webcam_service("/health", timeout=1.5)
+        if code == 200:
+            return True, "Webcam runner service is active."
+        return True, "Webcam service port is listening."
+
+    # Locate vision-venv python executable and script
+    root_dir = Path(__file__).resolve().parent.parent.parent
+    vision_python = root_dir / "vision-venv" / "Scripts" / "python.exe"
+    script_path = root_dir / "vision" / "scripts" / "webcam_runner.py"
+
+    if not vision_python.exists():
+        return False, f"Vision virtual environment Python not found at: {vision_python}"
+    if not script_path.exists():
+        return False, f"Webcam runner script not found at: {script_path}"
+
+    try:
+        flags = 0
+        if sys.platform == "win32":
+            flags = subprocess.CREATE_NO_WINDOW
+
+        subprocess.Popen(
+            [str(vision_python), str(script_path), "--port", str(WEBCAM_SERVICE_PORT)],
+            cwd=str(root_dir),
+            creationflags=flags,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        for _ in range(25):
+            time.sleep(0.3)
+            status_code, _ = query_webcam_service("/health", timeout=0.8)
+            if status_code == 200:
+                return True, "Webcam runner service launched successfully."
+
+        return False, "Timed out waiting for webcam runner service to start on port 8001."
+    except Exception as exc:
+        return False, f"Failed to start webcam process: {exc}"
+
+
+class WebcamStatusView(APIView):
+    """
+    GET /api/webcam/status/ - Get live webcam capture state and demonstration telemetry.
+    """
+    def get(self, request):
+        demo_loc = get_demo_location()
+        code, data = query_webcam_service("/status", timeout=2.0)
+        is_running = False
+        is_starting = False
+        error = None
+        fps = 0.0
+        crowd_count = 0
+        camera_index = 0
+
+        if code == 200 and isinstance(data, dict):
+            is_running = data.get("is_running", False)
+            is_starting = data.get("is_starting", False)
+            error = data.get("error")
+            fps = data.get("fps", 0.0)
+            crowd_count = data.get("crowd_count", 0)
+            camera_index = data.get("camera_index", 0)
+
+        return Response({
+            "is_running": is_running,
+            "is_starting": is_starting,
+            "is_service_active": (code == 200),
+            "camera_index": camera_index,
+            "crowd_count": crowd_count,
+            "fps": fps,
+            "error": error,
+            "demo_location": {
+                "id": demo_loc.id,
+                "name": demo_loc.name,
+                "safe_capacity": demo_loc.safe_capacity,
+                "current_count": demo_loc.current_count,
+                "occupancy_percentage": demo_loc.occupancy_percentage,
+                "current_status": demo_loc.current_status,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+class WebcamStartView(APIView):
+    """
+    POST /api/webcam/start/ - Start OpenCV webcam capture and YOLO detection.
+    """
+    def post(self, request):
+        success, msg = ensure_webcam_service_running()
+        if not success:
+            return Response({"success": False, "error": msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        camera_index = request.data.get("camera_index", 0)
+        code, data = query_webcam_service("/start", method="POST", data={"camera_index": camera_index}, timeout=8.0)
+
+        if code == 200:
+            return Response(data, status=status.HTTP_200_OK)
+        else:
+            err_msg = data.get("message") or data.get("error") or "Failed to open webcam."
+            return Response({"success": False, "error": err_msg}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WebcamStopView(APIView):
+    """
+    POST /api/webcam/stop/ - Stop OpenCV webcam capture and release camera resource.
+    """
+    def post(self, request):
+        code, data = query_webcam_service("/stop", method="POST", timeout=3.0)
+        if code == 200:
+            return Response(data, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Webcam stopped or service inactive."}, status=status.HTTP_200_OK)
+
+
+class WebcamConfigureView(APIView):
+    """
+    GET  /api/webcam/configure/ - Retrieve demonstration location configuration.
+    POST /api/webcam/configure/ - Update demonstration location safe capacity.
+    """
+    def get(self, request):
+        demo_loc = get_demo_location()
+        return Response({
+            "demo_location_id": demo_loc.id,
+            "name": demo_loc.name,
+            "safe_capacity": demo_loc.safe_capacity,
+            "current_count": demo_loc.current_count,
+            "occupancy_percentage": demo_loc.occupancy_percentage,
+            "current_status": demo_loc.current_status,
+            "high_threshold_percentage": 75.0,
+            "critical_threshold_percentage": 90.0,
+        }, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        demo_loc = get_demo_location()
+        new_capacity = request.data.get("safe_capacity")
+        if new_capacity is not None:
+            try:
+                new_cap_int = int(new_capacity)
+                if new_cap_int <= 0:
+                    return Response({"error": "Capacity must be greater than 0."}, status=status.HTTP_400_BAD_REQUEST)
+                demo_loc.safe_capacity = new_cap_int
+                demo_loc.save(update_fields=["safe_capacity", "updated_at"])
+                # Also notify webcam runner if running
+                query_webcam_service("/configure", method="POST", data={"safe_capacity": new_cap_int}, timeout=1.0)
+            except (ValueError, TypeError):
+                return Response({"error": "Invalid capacity value."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "success": True,
+            "demo_location_id": demo_loc.id,
+            "name": demo_loc.name,
+            "safe_capacity": demo_loc.safe_capacity,
+            "occupancy_percentage": demo_loc.occupancy_percentage,
+            "current_status": demo_loc.current_status,
+        }, status=status.HTTP_200_OK)
+
+
+class WebcamFeedProxyView(APIView):
+    """
+    GET /api/webcam/feed/ - Proxy the live MJPEG camera stream from the vision service.
+    """
+    def get(self, request):
+        def stream_generator():
+            try:
+                req = urllib.request.Request(f"{WEBCAM_SERVICE_URL}/feed")
+                with urllib.request.urlopen(req, timeout=10.0) as stream:
+                    while True:
+                        chunk = stream.read(4096)
+                        if not chunk:
+                            break
+                        yield chunk
+            except (GeneratorExit, Exception):
+                return
+
+        try:
+            resp = StreamingHttpResponse(
+                stream_generator(),
+                content_type="multipart/x-mixed-replace; boundary=frame"
+            )
+            resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp["Pragma"] = "no-cache"
+            resp["Expires"] = "0"
+            return resp
+        except Exception as e:
+            return Response({"error": f"Stream unavailable: {e}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
 
 
 # ==========================================

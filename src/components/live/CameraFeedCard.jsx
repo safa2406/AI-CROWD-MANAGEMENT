@@ -13,9 +13,10 @@ import {
   Layers,
   Sparkles,
   Eye,
+  Camera,
 } from "lucide-react";
 
-export function CameraFeedCard() {
+export function CameraFeedCard({ onSwitchToWebcam }) {
   const { locations, selectedCameraId, setSelectedCameraId } = useCrowd();
   const [viewMode, setViewMode] = useState("quad"); // 'quad' (4-grid) | 'single' (focused theater)
   const [streamMode, setStreamMode] = useState("overlay"); // 'overlay' (Dynamic YOLO Overlay) | 'annotated' (Burned-in Stream) | 'raw' (Clean Feed)
@@ -178,6 +179,18 @@ export function CameraFeedCard() {
               </button>
             ))}
           </div>
+
+          {/* Shortcut to Live Webcam */}
+          {onSwitchToWebcam && (
+            <button
+              onClick={onSwitchToWebcam}
+              title="Switch to Live Laptop Webcam Feed"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 text-[11px] font-semibold transition-all cursor-pointer"
+            >
+              <Camera className="w-3 h-3 text-emerald-400" />
+              <span>Live Webcam</span>
+            </button>
+          )}
         </div>
       </div>
 
